@@ -48,11 +48,6 @@ class temp(object):
 
 
 
-
-
-
-
-
 async def is_subscribed(client, query):
     if isinstance(AUTH_CHANNEL, int):
         auth_channels = [AUTH_CHANNEL]
@@ -73,6 +68,7 @@ async def is_subscribed(client, query):
             try:
                 new_link = await client.create_chat_invite_link(chat_id=channel, creates_join_request=True)
                 invite_links.append(new_link.invite_link)
+                break # ഒരു സമയം ഒരു ലിങ്ക് മാത്രം ഉണ്ടാക്കാൻ ലൂപ്പ് ബ്രേക്ക് ചെയ്യുന്നു
             except Exception as e:
                 print(f"Error: {e}")
                 continue
@@ -80,6 +76,7 @@ async def is_subscribed(client, query):
             continue
 
     return invite_links
+
 
 
 
