@@ -13,3 +13,4 @@ aiofiles
 pytz
 dnspython==2.6.1
 certifi
+python-dotenv
