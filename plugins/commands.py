@@ -326,7 +326,22 @@ async def start(client, message: Message):
     await m.delete()
     await k.edit_text("<b>✅ Yᴏᴜʀ File ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>") 
     return     
-                    
+
+
+
+@Client.on_chat_join_request()
+async def handle_join_request(client, chat_join_request):
+    user_id = chat_join_request.from_user.id
+    await db.add_pending_user(user_id)
+
+@Client.on_message(filters.command("delrequests") & filters.user(ADMINS))
+async def clear_pending_data(client, message):
+    msg = await message.reply_text("⚡ _പഴയ റിക്വസ്റ്റ് ഡാറ്റകൾ ഡിലീറ്റ് ചെയ്തുകൊണ്ടിരിക്കുന്നു..._")
+    try:
+        await db.clear_all_pending_requests()
+        await msg.edit("✅ **വിജയകരമായി എല്ലാ പഴയ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തിരിക്കുന്നു!**")
+    except Exception as e:
+        await msg.edit(f"❌ **എറർ:** `{e}`")
 
 @Client.on_message(filters.command('channel') & filters.user(ADMINS))
 async def channel_info(bot, message):
