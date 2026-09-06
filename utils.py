@@ -48,6 +48,9 @@ class temp(object):
 
 
 
+from pyrogram.errors import UserNotParticipant
+from database.users_chats_db import db
+
 async def is_subscribed(client, query):
     if isinstance(AUTH_CHANNEL, int):
         auth_channels = [AUTH_CHANNEL]
@@ -61,16 +64,20 @@ async def is_subscribed(client, query):
 
     for channel in auth_channels:
         try:
+            # ഉപയോക്താവ് ചാനലിൽ മെമ്പർ ആണോ എന്ന് നോക്കുന്നു
             await client.get_chat_member(chat_id=channel, user_id=user_id)
         except UserNotParticipant:
-            if await db.is_user_pending(user_id):
+            # ചാനലിൽ മെമ്പർ അല്ലെങ്കിൽ, ഈ ചാനലിലേക്ക് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് ഡാറ്റാബേസിൽ നോക്കുന്നു
+            if await db.is_user_pending(user_id, channel):
                 continue
+            
+            # മെമ്പറും അല്ല, റിക്വസ്റ്റും അയച്ചിട്ടില്ലെങ്കിൽ ഈ ചാനലിന്റെ ലിങ്ക് മാത്രം ഉണ്ടാക്കി ലൂപ്പ് നിർത്തുന്നു
             try:
                 new_link = await client.create_chat_invite_link(chat_id=channel, creates_join_request=True)
                 invite_links.append(new_link.invite_link)
-                break # ഒരു സമയം ഒരു ലിങ്ക് മാത്രം ഉണ്ടാക്കാൻ ലൂപ്പ് ബ്രേക്ക് ചെയ്യുന്നു
+                break 
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error generating link: {e}")
                 continue
         except Exception:
             continue
