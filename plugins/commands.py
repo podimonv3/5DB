@@ -358,14 +358,16 @@ async def handle_join_request(client, chat_join_request):
                 print(f"Error sending 2nd channel link: {e}")
 
 
-@Client.on_message(filters.command("delrequests") & filters.user(ADMINS))
-async def clear_pending_data(client, message):
-    msg = await message.reply_text("⚡ _പഴയ റിക്വസ്റ്റ് ഡാറ്റകൾ ഡിലീറ്റ് ചെയ്തുകൊണ്ടിരിക്കുന്നു..._")
-    try:
-        await db.clear_all_pending_requests()
-        await msg.edit("✅ **വിജയകരമായി എല്ലാ പഴയ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തിരിക്കുന്നു!**")
-    except Exception as e:
-        await msg.edit(f"❌ **എറർ:** `{e}`")
+@Client.on_message(filters.command("delrequests1") & filters.user(ADMINS))
+async def clear_ch1_data(client, message):
+    await db.clear_pending_ch1()
+    await message.reply_text("✅ ചാനൽ 1-ലെ എല്ലാ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തു!")
+
+@Client.on_message(filters.command("delrequests2") & filters.user(ADMINS))
+async def clear_ch2_data(client, message):
+    await db.clear_pending_ch2()
+    await message.reply_text("✅ ചാനൽ 2-ലെ എല്ലാ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തു!")
+
 
 @Client.on_message(filters.command('channel') & filters.user(ADMINS))
 async def channel_info(bot, message):
