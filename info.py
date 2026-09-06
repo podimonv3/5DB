@@ -1,6 +1,8 @@
 import re
 from os import environ
+from dotenv import load_dotenv
 
+load_dotenv()
 id_pattern = re.compile(r'^.\d+$')
 def is_enabled(value, default):
     if value.lower() in ["true", "yes", "1", "enable", "y"]:
@@ -50,6 +52,8 @@ DATABASE_NAME = environ.get('DATABASE_NAME', "name")
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'file')
 
 # Others
+REQ_CHANNEL1 = os.environ.get('REQ_CHANNEL1', '-100xxxxxxxxxx')
+REQ_CHANNEL2 = os.environ.get('REQ_CHANNEL2', '-100yyyyyyyyyy')
 FORCE_SUB_1 = environ.get('FORCE_SUB_1', '')
 FORCE_SUB_2 = environ.get('FORCE_SUB_2', '')
 LOG_CHANNEL = int(environ.get('LOG_CHANNEL', 0))
