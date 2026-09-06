@@ -3,6 +3,7 @@ from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait,
 from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, MAX_LIST_ELM, PROTECT_CONTENT, CUSTOM_FILE_CAPTION, LOG_CHANNEL
 from imdb import Cinemagoer 
 import asyncio
+from pyrogram.types import ChatPrivileges
 from pyrogram.types import Message, InlineKeyboardButton
 from pyrogram import enums
 from typing import Union
@@ -46,8 +47,10 @@ class temp(object):
 
 
 
+
+
 async def is_subscribed(client, query):
-    # AUTH_CHANNEL-ൽ ചാനൽ ഐഡികൾ ലിസ്റ്റ് ആയിട്ടാണോ അതോ ഒറ്റയ്ക്കാണോ എന്ന് നോക്കുന്നു
+    # AUTH_CHANNEL പരിശോധിക്കുന്നു
     if isinstance(AUTH_CHANNEL, int):
         auth_channels = [AUTH_CHANNEL]
     elif isinstance(AUTH_CHANNEL, list):
@@ -60,38 +63,37 @@ async def is_subscribed(client, query):
 
     for channel in auth_channels:
         try:
-            # ഉപയോക്താവ് ചാനലിൽ മെമ്പർ ആണോ എന്ന് നോക്കുന്നു
+            # ഉപയോക്താവ് ചാനലിൽ ഉണ്ടോ എന്ന് നോക്കുന്നു
             member = await client.get_chat_member(chat_id=channel, user_id=user_id)
         except UserNotParticipant:
             try:
-                # മെമ്പർ അല്ലെങ്കിൽ, അവർ ഒരു Join Request അയച്ചിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു
-                # അഡ്മിൻ പാനലിലെ Pending Requests ഈ രീതിയിൽ പരിശോധിക്കാം
+                # Pending requests പരിശോധിക്കുന്നു
                 pending_requests = []
                 async for req in client.get_chat_join_requests(chat_id=channel):
                     pending_requests.append(req.from_user.id)
                 
-                # ഉപയോക്താവ് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടെങ്കിൽ അത് skip ചെയ്യും (ഫയൽ നൽകും)
+                # റിക്വസ്റ്റ് ലിസ്റ്റിൽ ഉണ്ടെങ്കിൽ ഫയൽ നൽകാൻ അനുമതി കൊടുക്കുന്നു
                 if user_id in pending_requests:
                     continue
             except Exception as e:
                 print(f"Error checking join requests: {e}")
                 
-            # മെമ്പറും അല്ല, റിക്വസ്റ്റും അയച്ചിട്ടില്ലെങ്കിൽ മാത്രം ജോയിൻ ചെയ്യാനുള്ള ലിങ്ക് ഉണ്ടാക്കുന്നു
+            # ⚠️ പുതിയ JOIN REQUEST LINK നിർബന്ധപൂർവ്വം ഉണ്ടാക്കുന്നു
             try:
-                chat = await client.get_chat(channel)
-                # ചാനലിന്റെ ഇൻവൈറ്റ് ലിങ്ക് ഇവിടെ എടുക്കുന്നു
-                link = chat.invite_link
-                if not link:
-                    # ലിങ്ക് ഇല്ലെങ്കിൽ താൽക്കാലിക ലിങ്ക് ഉണ്ടാക്കും
-                    link = (await client.create_chat_invite_link(chat_id=channel, creates_join_request=True)).invite_link
-                invite_links.append(link)
+                # ചാനലിന്റെ പഴയ ലിങ്ക് എടുക്കാതെ, ബോട്ട് ഒരു പുതിയ Join Request Link സ്വയം നിർമ്മിക്കുന്നു
+                new_link = await client.create_chat_invite_link(
+                    chat_id=channel, 
+                    creates_join_request=True  # ഇത് ടെലിഗ്രാമിൽ ജോയിൻ റിക്വസ്റ്റ് പോപ്പ്-അപ്പ് വരാൻ നിർബന്ധമാണ്
+                )
+                invite_links.append(new_link.invite_link)
             except Exception as e:
-                print(f"Error generating link: {e}")
+                print(f"Error generating join request link: {e}")
                 continue
         except Exception:
             continue
 
     return invite_links
+
 
 
 async def get_poster(query, bulk=False, id=False, file=None):
