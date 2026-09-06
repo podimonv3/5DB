@@ -84,25 +84,26 @@ async def start(client, message: Message):
     invite_links = await is_subscribed(client, query=message)
     if AUTH_CHANNEL and len(invite_links) >= 1:
         btn = []
-        link = invite_links[0]
         user_id = message.from_user.id
         
-        # ചാനൽ 1-ലേക്ക് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
+        # ചാനൽ 1-ലേക്ക് ഇതിനകം റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
         if not await db.is_user_pending_ch1(user_id):
-            # റിക്വസ്റ്റ് അയച്ചിട്ടില്ലെങ്കിൽ ചാനൽ 1 ബട്ടൺ മാത്രം കാണിക്കുന്നു (Try Again ഇല്ല)
+            # റിക്വസ്റ്റ് അയച്ചിട്ടില്ലെങ്കിൽ ചാനൽ 1 ബട്ടൺ മാത്രം കാണിക്കുന്നു (Try Again ബട്ടൺ ഇവിടെ ഇല്ല)
+            link = invite_links[0]
             btn.append([
                 InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 1sᴛ Cʜᴀɴɴᴇʟ", url=link)
             ])
             text_msg = "**Yᴏᴜ ɴᴇᴇᴅ ᴛᴏ sᴇɴᴅ ᴀ Jᴏɪɴ Rᴇǫᴜᴇsᴛ ᴛᴏ ᴏᴜʀ 1sᴛ ᴄʜᴀɴɴᴇʟ ᴛᴏ ɢᴇᴛ ᴛʜᴇ ғɪʟᴇ...\n\n👉 Click the channel button below and press 'Request to Join'.**"
         else:
-            # ചാനൽ 1 അയച്ചു കഴിഞ്ഞെങ്കിൽ ചാനൽ 2 ബട്ടണും Try Again ബട്ടണും കാണിക്കുന്നു
+            # ഉപയോക്താവ് ഇതിനകം ചാനൽ 1 അയച്ചിട്ടുണ്ടെങ്കിൽ ചാനൽ 2 ബട്ടണും Try Again ബട്ടണും ഒരുമിച്ച് കാണിക്കും
+            link = invite_links[0] if len(invite_links) == 1 else invite_links[1]
             btn.append([
                 InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 2ɴᴅ Cʜᴀɴɴᴇʟ", url=link)
             ])
             btn.append([
                 InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪɴ", url=f"https://t.me{temp.U_NAME}?start=checksub")
             ])
-            text_msg = "**Great! First request sent.\n\nNow please send a Join Request to our 2nd Channel and click '↻ Try Again' to unlock your file!**"
+            text_msg = "**Great! First request approved/sent.\n\nNow please send a Join Request to our 2nd Channel and click '↻ Try Again' to unlock your file!**"
         
         authdel = await client.send_message(
             chat_id=message.from_user.id,
@@ -343,6 +344,27 @@ async def handle_join_request(client, chat_join_request):
     # ഉപയോക്താവ് ഏത് ചാനലിലാണ് റിക്വസ്റ്റ് അയച്ചത് എന്ന് നോക്കി വെവ്വേറെ സേവ് ചെയ്യുന്നു
     if len(auth_channels) >= 1 and chat_id == auth_channels[0]:
         await db.add_pending_user_ch1(user_id)
+        
+        # ⚡ ആദ്യ ചാനലിൽ റിക്വസ്റ്റ് അടിച്ച ഉടൻ തന്നെ രണ്ടാമത്തെ ചാനൽ ലിങ്ക് ഇൻബോക്സിലേക്ക് അയക്കുന്നു!
+        if len(auth_channels) > 1:
+            try:
+                next_channel = auth_channels[1]
+                new_link = await client.create_chat_invite_link(chat_id=next_channel, creates_join_request=True)
+                
+                btn = [
+                    [InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 2ɴᴅ Cʜᴀɴɴᴇʟ", url=new_link.invite_link)],
+                    [InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪɴ", url=f"https://t.me{temp.U_NAME}?start=checksub")]
+                ]
+                
+                await client.send_message(
+                    chat_id=user_id,
+                    text="**Great! First request sent.\n\nNow please send a Join Request to our 2nd Channel and click '↻ Try Again' to unlock your file!**",
+                    reply_markup=InlineKeyboardMarkup(btn),
+                    parse_mode=enums.ParseMode.MARKDOWN
+                )
+            except Exception as e:
+                print(f"Error sending 2nd channel link automatically: {e}")
+                
     elif len(auth_channels) >= 2 and chat_id == auth_channels[1]:
         await db.add_pending_user_ch2(user_id)
 
