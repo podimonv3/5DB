@@ -11,6 +11,7 @@ from database.connections_mdb import active_connection
 logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 from plugins.pm_filter import auto_filter
+import temp
 
 BATCH_FILES = {}
 REACTIONS = ["🤝", "😇", "🤗", "😍", "👍", "🎅", "😐", "🥰", "🤩", "😱", "🤣", "😘", "👏", "😛", "😈", "🎉", "⚡️", "🫡", "🤓", "😎", "🏆", "🔥", "🤭", "🌚", "🆒", "👻", "😁"] #don't add any emoji because tg not support all emoji reactions
@@ -316,15 +317,16 @@ async def start(client, message: Message):
 
 
 
+
 @Client.on_chat_join_request()
 async def handle_join_request(client, chat_join_request):
     user_id = chat_join_request.from_user.id
     chat_id = chat_join_request.chat.id
     
-    # 1. റിക്വസ്റ്റ് അയച്ച വിവരം ഡാറ്റാബേസിൽ രേഖപ്പെടുത്തുന്നു
-    await db.add_pending_user(user_id)
+    # 1. റിക്വസ്റ്റ് അയച്ച ചാനൽ ഐഡി കൂടി പാസ്സ് ചെയ്ത് ഡാറ്റാബേസിൽ സേവ് ചെയ്യുന്നു
+    await db.add_pending_user(user_id, chat_id)
     
-    # AUTH_CHANNEL ലിസ്റ്റ് ആക്കി മാറ്റുന്നു
+    # AUTH_CHANNEL ലിസ്റ്റ് തയ്യാറാക്കുന്നു
     if isinstance(AUTH_CHANNEL, int):
         auth_channels = [AUTH_CHANNEL]
     elif isinstance(AUTH_CHANNEL, list):
@@ -332,16 +334,16 @@ async def handle_join_request(client, chat_join_request):
     else:
         return
 
-    # രണ്ട് ചാനലുകൾ ഉണ്ടെങ്കിൽ മാത്രം ഈ ഓട്ടോമാറ്റിക് മെസ്സേജ് മാറ്റം നടക്കും
+    # രണ്ട് ചാനലുകൾ ഉണ്ടെങ്കിൽ മാത്രം ഈ ഓട്ടോമാറ്റിക് ബട്ടൺ മാറ്റം നടക്കും
     if len(auth_channels) > 1:
-        # ഉപയോക്താവ് ഒന്നാമത്തെ ചാനലിലാണ് റിക്വസ്റ്റ് അയച്ചതെങ്കിൽ
+        # ഉപയോക്താവ് ഒന്നാമത്തെ ചാനലിലാണ് റിക്വസ്റ്റ് അയച്ചതെങ്കിൽ (Index 0)
         if chat_id == auth_channels[0]:
             try:
-                # രണ്ടാമത്തെ ചാനലിന്റെ ലിങ്ക് തത്സമയം നിർമ്മിക്കുന്നു
+                # രണ്ടാമത്തെ ചാനലിന്റെ ലിങ്ക് തത്സമയം നിർമ്മിക്കുന്നു (Index 1)
                 next_channel = auth_channels[1]
                 new_link = await client.create_chat_invite_link(chat_id=next_channel, creates_join_request=True)
                 
-                # 📥 രണ്ടാമത്തെ ചാനൽ ലിങ്കും + Try Again ബട്ടണും ഒരുമിച്ച് നൽകുന്നു
+                # രണ്ടാമത്തെ ചാനൽ ലിങ്കും + Try Again ബട്ടണും ഒരുമിച്ച് നൽകുന്നു
                 btn = [
                     [InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 2ɴᴅ Cʜᴀɴɴᴇʟ", url=new_link.invite_link)],
                     [InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪɴ", url=f"https://t.me{temp.U_NAME}?start=checksub")]
@@ -353,7 +355,7 @@ async def handle_join_request(client, chat_join_request):
                     reply_markup=InlineKeyboardMarkup(btn)
                 )
             except Exception as e:
-                print(f"Error sending 2nd channel link with try again: {e}")
+                print(f"Error sending 2nd channel link: {e}")
 
 
 @Client.on_message(filters.command("delrequests") & filters.user(ADMINS))
