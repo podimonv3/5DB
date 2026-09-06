@@ -11,5 +11,6 @@ cinemagoer
 aiohttp>=3.10.0
 aiofiles
 pytz
+dnspython==2.6.1
 
 
