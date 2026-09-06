@@ -44,26 +44,55 @@ class temp(object):
     SEND_ALL_TEMP = {}
     KEYWORD = {}
 
-async def is_subscribed(bot, query=None, userid=None):
+
+
+async def is_subscribed(client, query):
+    # AUTH_CHANNEL-ൽ ചാനൽ ഐഡികൾ ലിസ്റ്റ് ആയിട്ടാണോ അതോ ഒറ്റയ്ക്കാണോ എന്ന് നോക്കുന്നു
+    if isinstance(AUTH_CHANNEL, int):
+        auth_channels = [AUTH_CHANNEL]
+    elif isinstance(AUTH_CHANNEL, list):
+        auth_channels = AUTH_CHANNEL
+    else:
+        return []
+
     invite_links = []
-    for id in AUTH_CHANNEL:
+    user_id = query.from_user.id
+
+    for channel in auth_channels:
         try:
-            if userid == None and query != None:
-                chat = await bot.get_chat(id)
-                user = await bot.get_chat_member(id, query.from_user.id)
-            else:
-                chat = await bot.get_chat(id)
-                user = await bot.get_chat_member(AUTH_CHANNEL, int(userid))
+            # ഉപയോക്താവ് ചാനലിൽ മെമ്പർ ആണോ എന്ന് നോക്കുന്നു
+            member = await client.get_chat_member(chat_id=channel, user_id=user_id)
         except UserNotParticipant:
-            invite_links.append(chat.invite_link)
-        except Exception as e:
-            logger.exception(e)
-            continue
-        else:
-            if user.status != enums.ChatMemberStatus.BANNED:
+            try:
+                # മെമ്പർ അല്ലെങ്കിൽ, അവർ ഒരു Join Request അയച്ചിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു
+                # അഡ്മിൻ പാനലിലെ Pending Requests ഈ രീതിയിൽ പരിശോധിക്കാം
+                pending_requests = []
+                async for req in client.get_chat_join_requests(chat_id=channel):
+                    pending_requests.append(req.from_user.id)
+                
+                # ഉപയോക്താവ് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടെങ്കിൽ അത് skip ചെയ്യും (ഫയൽ നൽകും)
+                if user_id in pending_requests:
+                    continue
+            except Exception as e:
+                print(f"Error checking join requests: {e}")
+                
+            # മെമ്പറും അല്ല, റിക്വസ്റ്റും അയച്ചിട്ടില്ലെങ്കിൽ മാത്രം ജോയിൻ ചെയ്യാനുള്ള ലിങ്ക് ഉണ്ടാക്കുന്നു
+            try:
+                chat = await client.get_chat(channel)
+                # ചാനലിന്റെ ഇൻവൈറ്റ് ലിങ്ക് ഇവിടെ എടുക്കുന്നു
+                link = chat.invite_link
+                if not link:
+                    # ലിങ്ക് ഇല്ലെങ്കിൽ താൽക്കാലിക ലിങ്ക് ഉണ്ടാക്കും
+                    link = (await client.create_chat_invite_link(chat_id=channel, creates_join_request=True)).invite_link
+                invite_links.append(link)
+            except Exception as e:
+                print(f"Error generating link: {e}")
                 continue
+        except Exception:
+            continue
 
     return invite_links
+
 
 async def get_poster(query, bulk=False, id=False, file=None):
     if not id:
