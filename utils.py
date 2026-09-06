@@ -10,6 +10,7 @@ from typing import Union
 import re
 import os
 import pytz
+from database.users_chats_db import db
 from datetime import datetime
 from typing import List
 from database.users_chats_db import db
@@ -49,8 +50,10 @@ class temp(object):
 
 
 
+
+
+
 async def is_subscribed(client, query):
-    # AUTH_CHANNEL പരിശോധിക്കുന്നു
     if isinstance(AUTH_CHANNEL, int):
         auth_channels = [AUTH_CHANNEL]
     elif isinstance(AUTH_CHANNEL, list):
@@ -63,31 +66,15 @@ async def is_subscribed(client, query):
 
     for channel in auth_channels:
         try:
-            # ഉപയോക്താവ് ചാനലിൽ ഉണ്ടോ എന്ന് നോക്കുന്നു
-            member = await client.get_chat_member(chat_id=channel, user_id=user_id)
+            await client.get_chat_member(chat_id=channel, user_id=user_id)
         except UserNotParticipant:
+            if await db.is_user_pending(user_id):
+                continue
             try:
-                # Pending requests പരിശോധിക്കുന്നു
-                pending_requests = []
-                async for req in client.get_chat_join_requests(chat_id=channel):
-                    pending_requests.append(req.from_user.id)
-                
-                # റിക്വസ്റ്റ് ലിസ്റ്റിൽ ഉണ്ടെങ്കിൽ ഫയൽ നൽകാൻ അനുമതി കൊടുക്കുന്നു
-                if user_id in pending_requests:
-                    continue
-            except Exception as e:
-                print(f"Error checking join requests: {e}")
-                
-            # ⚠️ പുതിയ JOIN REQUEST LINK നിർബന്ധപൂർവ്വം ഉണ്ടാക്കുന്നു
-            try:
-                # ചാനലിന്റെ പഴയ ലിങ്ക് എടുക്കാതെ, ബോട്ട് ഒരു പുതിയ Join Request Link സ്വയം നിർമ്മിക്കുന്നു
-                new_link = await client.create_chat_invite_link(
-                    chat_id=channel, 
-                    creates_join_request=True  # ഇത് ടെലിഗ്രാമിൽ ജോയിൻ റിക്വസ്റ്റ് പോപ്പ്-അപ്പ് വരാൻ നിർബന്ധമാണ്
-                )
+                new_link = await client.create_chat_invite_link(chat_id=channel, creates_join_request=True)
                 invite_links.append(new_link.invite_link)
             except Exception as e:
-                print(f"Error generating join request link: {e}")
+                print(f"Error: {e}")
                 continue
         except Exception:
             continue
