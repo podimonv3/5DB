@@ -46,14 +46,131 @@ class temp(object):
     SEND_ALL_TEMP = {}
     KEYWORD = {}
 
+# 1. ഒന്നാമത്തെ ചാനലിൽ ജോയിൻ റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് പരിശോധിക്കാൻ
+async def is_requested_one(client, message):
+    if not REQ_CHANNEL1:
+        return True
+    user_id = message.from_user.id
+    # നിങ്ങളുടെ പുതിയ DB സ്ട്രക്ചർ അനുസരിച്ച് പരിശോധിക്കുന്നു
+    if await db.is_user_pending_ch1(user_id):
+        return True
+    try:
+        # യൂസർ ചാനലിൽ മെമ്പർ ആണോ എന്നും നോക്കുന്നു
+        await client.get_chat_member(chat_id=int(REQ_CHANNEL1), user_id=user_id)
+        return True
+    except UserNotParticipant:
+        # ലിങ്ക് തത്സമയം സ്റ്റാർട്ട് കമാൻഡിന് ലഭ്യമാക്കാൻ client ഒബ്ജക്റ്റിലേക്ക് മാറ്റുന്നു
+        try:
+            new_link = await client.create_chat_invite_link(chat_id=int(REQ_CHANNEL1), creates_join_request=True)
+            client.req_link1 = new_link.invite_link
+        except Exception as e:
+            print(f"Error generating link 1: {e}")
+        return False
+    except Exception:
+        return True
+
+# 2. രണ്ടാമത്തെ ചാനലിൽ ജോയിൻ റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് പരിശോധിക്കാൻ
+async def is_requested_two(client, message):
+    if not REQ_CHANNEL2:
+        return True
+    user_id = message.from_user.id
+    if await db.is_user_pending_ch2(user_id):
+        return True
+    try:
+        await client.get_chat_member(chat_id=int(REQ_CHANNEL2), user_id=user_id)
+        return True
+    except UserNotParticipant:
+        try:
+            new_link = await client.create_chat_invite_link(chat_id=int(REQ_CHANNEL2), creates_join_request=True)
+            client.req_link2 = new_link.invite_link
+        except Exception as e:
+            print(f"Error generating link 2: {e}")
+        return False
+    except Exception:
+        return True
+
+# 3. രണ്ട് ചാനലുകളിലെയും റിക്വസ്റ്റുകൾ ഒന്നിച്ച് ട്രാക്ക് ചെയ്യുന്ന പ്രധാന ബാക്ക്-എൻഡ് ലൂപ്പ്
+async def check_loop_sub(client, message):
+    user_id = message.from_user.id
+    while True:
+        await asyncio.sleep(2) # ഓരോ 2 സെക്കൻഡിലും റിക്വസ്റ്റ് വന്നിട്ടുണ്ടോ എന്ന് നോക്കും
+        ch1_ok = False
+        ch2_ok = False
+        
+        # ചാനൽ 1 ചെക്കിങ്
+        if REQ_CHANNEL1:
+            if await db.is_user_pending_ch1(user_id):
+                ch1_ok = True
+            else:
+                try:
+                    await client.get_chat_member(chat_id=int(REQ_CHANNEL1), user_id=user_id)
+                    ch1_ok = True
+                except UserNotParticipant:
+                    pass
+                except Exception:
+                    ch1_ok = True
+        else:
+            ch1_ok = True
+
+        # ചാനൽ 2 ചെക്കിങ്
+        if REQ_CHANNEL2:
+            if await db.is_user_pending_ch2(user_id):
+                ch2_ok = True
+            else:
+                try:
+                    await client.get_chat_member(chat_id=int(REQ_CHANNEL2), user_id=user_id)
+                    ch2_ok = True
+                except UserNotParticipant:
+                    pass
+                except Exception:
+                    ch2_ok = True
+        else:
+            ch2_ok = True
+
+        # രണ്ട് ചാനലിലും റിക്വസ്റ്റ് വന്നിട്ടുണ്ടെങ്കിൽ ലൂപ്പ് നിർത്തി ഫയൽ അയക്കാൻ അനുമതി നൽകും
+        if ch1_ok and ch2_ok:
+            return True
+
+# 4. ചാനൽ 1 മാത്രം പ്രത്യേകമായി ട്രാക്ക് ചെയ്യാൻ (ലൂപ്പ് 1)
+async def check_loop_sub1(client, message):
+    user_id = message.from_user.id
+    while True:
+        await asyncio.sleep(2)
+        if await db.is_user_pending_ch1(user_id):
+            return True
+        try:
+            await client.get_chat_member(chat_id=int(REQ_CHANNEL1), user_id=user_id)
+            return True
+        except UserNotParticipant:
+            pass
+        except Exception:
+            return True
+
+# 5. ചാനൽ 2 മാത്രം പ്രത്യേകമായി ട്രാക്ക് ചെയ്യാൻ (ലൂപ്പ് 2)
+async def check_loop_sub2(client, message):
+    user_id = message.from_user.id
+    while True:
+        await asyncio.sleep(2)
+        if await db.is_user_pending_ch2(user_id):
+            return True
+        try:
+            await client.get_chat_member(chat_id=int(REQ_CHANNEL2), user_id=user_id)
+            return True
+        except UserNotParticipant:
+            pass
+        except Exception:
+            return True
 
 
 async def is_subscribed(client, query):
-    if isinstance(AUTH_CHANNEL, int):
-        auth_channels = [AUTH_CHANNEL]
-    elif isinstance(AUTH_CHANNEL, list):
-        auth_channels = AUTH_CHANNEL
-    else:
+    # info.py-ൽ നിന്ന് ഇമ്പോർട്ട് ചെയ്ത ചാനലുകൾ ഒരു ലിസ്റ്റ് ആക്കുന്നു
+    auth_channels = []
+    if REQ_CHANNEL1:
+        auth_channels.append(int(REQ_CHANNEL1))
+    if REQ_CHANNEL2:
+        auth_channels.append(int(REQ_CHANNEL2))
+
+    if not auth_channels:
         return []
 
     invite_links = []
@@ -65,7 +182,6 @@ async def is_subscribed(client, query):
         try:
             await client.get_chat_member(chat_id=channel1, user_id=user_id)
         except UserNotParticipant:
-            # ചാനൽ 1-ലേക്ക് ഇതിനകം റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
             if not await db.is_user_pending_ch1(user_id):
                 try:
                     new_link = await client.create_chat_invite_link(chat_id=channel1, creates_join_request=True)
@@ -82,7 +198,6 @@ async def is_subscribed(client, query):
         try:
             await client.get_chat_member(chat_id=channel2, user_id=user_id)
         except UserNotParticipant:
-            # ചാനൽ 2-ലേക്ക് ഇതിനകം റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
             if not await db.is_user_pending_ch2(user_id):
                 try:
                     new_link = await client.create_chat_invite_link(chat_id=channel2, creates_join_request=True)
