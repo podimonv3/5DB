@@ -48,9 +48,6 @@ class temp(object):
 
 
 
-from pyrogram.errors import UserNotParticipant
-from database.users_chats_db import db
-
 async def is_subscribed(client, query):
     if isinstance(AUTH_CHANNEL, int):
         auth_channels = [AUTH_CHANNEL]
@@ -62,27 +59,41 @@ async def is_subscribed(client, query):
     invite_links = []
     user_id = query.from_user.id
 
-    for channel in auth_channels:
+    # ---- ഒന്നാമത്തെ ചാനൽ പരിശോധന ----
+    if len(auth_channels) >= 1:
+        channel1 = auth_channels[0]
         try:
-            # ഉപയോക്താവ് ചാനലിൽ മെമ്പർ ആണോ എന്ന് നോക്കുന്നു
-            await client.get_chat_member(chat_id=channel, user_id=user_id)
+            await client.get_chat_member(chat_id=channel1, user_id=user_id)
         except UserNotParticipant:
-            # ചാനലിൽ മെമ്പർ അല്ലെങ്കിൽ, ഈ ചാനലിലേക്ക് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് ഡാറ്റാബേസിൽ നോക്കുന്നു
-            if await db.is_user_pending(user_id, channel):
-                continue
-            
-            # മെമ്പറും അല്ല, റിക്വസ്റ്റും അയച്ചിട്ടില്ലെങ്കിൽ ഈ ചാനലിന്റെ ലിങ്ക് മാത്രം ഉണ്ടാക്കി ലൂപ്പ് നിർത്തുന്നു
-            try:
-                new_link = await client.create_chat_invite_link(chat_id=channel, creates_join_request=True)
-                invite_links.append(new_link.invite_link)
-                break 
-            except Exception as e:
-                print(f"Error generating link: {e}")
-                continue
+            # ചാനൽ 1-ലേക്ക് ഇതിനകം റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
+            if not await db.is_user_pending_ch1(user_id):
+                try:
+                    new_link = await client.create_chat_invite_link(chat_id=channel1, creates_join_request=True)
+                    invite_links.append(new_link.invite_link)
+                    return invite_links  # ഒന്നാമത്തെ ലിങ്ക് കിട്ടിയാൽ ഉടൻ റിട്ടേൺ ചെയ്യുന്നു
+                except Exception as e:
+                    print(f"Error generating link for Ch1: {e}")
         except Exception:
-            continue
+            pass
+
+    # ---- രണ്ടാമത്തെ ചാനൽ പരിശോധന ----
+    if len(auth_channels) >= 2:
+        channel2 = auth_channels[1]
+        try:
+            await client.get_chat_member(chat_id=channel2, user_id=user_id)
+        except UserNotParticipant:
+            # ചാനൽ 2-ലേക്ക് ഇതിനകം റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
+            if not await db.is_user_pending_ch2(user_id):
+                try:
+                    new_link = await client.create_chat_invite_link(chat_id=channel2, creates_join_request=True)
+                    invite_links.append(new_link.invite_link)
+                except Exception as e:
+                    print(f"Error generating link for Ch2: {e}")
+        except Exception:
+            pass
 
     return invite_links
+
 
 
 
