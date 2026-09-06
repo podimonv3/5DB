@@ -52,8 +52,8 @@ DATABASE_NAME = environ.get('DATABASE_NAME', "name")
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'file')
 
 # Others
-REQ_CHANNEL1 = os.environ.get('REQ_CHANNEL1', '-100xxxxxxxxxx')
-REQ_CHANNEL2 = os.environ.get('REQ_CHANNEL2', '-100yyyyyyyyyy')
+REQ_CHANNEL1 = os.environ.get('REQ_CHANNEL1', '-1004447289749')
+REQ_CHANNEL2 = os.environ.get('REQ_CHANNEL2', '-1004224712515')
 FORCE_SUB_1 = environ.get('FORCE_SUB_1', '')
 FORCE_SUB_2 = environ.get('FORCE_SUB_2', '')
 LOG_CHANNEL = int(environ.get('LOG_CHANNEL', 0))
