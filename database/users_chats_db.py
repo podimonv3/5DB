@@ -143,8 +143,10 @@ class Database:
         return (await self.db.command("dbstats"))['dataSize']
 
 
-    # ---- ചാനൽ 1-ന് വേണ്ടിയുള്ള ഫങ്ഷനുകൾ ----
+    # ==================== ചാനൽ 1 ജോയിൻ റിക്വസ്റ്റ് ഫങ്ഷനുകൾ ====================
+    
     async def add_pending_user_ch1(self, user_id):
+        """ഉപയോക്താവ് ചാനൽ 1-ലേക്ക് റിക്വസ്റ്റ് അയക്കുമ്പോൾ pending_users_ch1 കളക്ഷനിലേക്ക് മാറ്റുന്നു"""
         await self.db.pending_users_ch1.update_one(
             {'_id': user_id},
             {'$set': {'status': 'pending'}},
@@ -152,15 +154,19 @@ class Database:
         )
 
     async def is_user_pending_ch1(self, user_id):
+        """ഉപയോക്താവ് ചാനൽ 1-ലേക്ക് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു"""
         user = await self.db.pending_users_ch1.find_one({'_id': user_id})
         return bool(user)
 
     async def clear_pending_ch1(self):
+        """അഡ്മിൻ കമാൻഡ് അടിക്കുമ്പോൾ ചാനൽ 1-ലെ മുഴുവൻ ഡാറ്റയും ക്ലിയർ ചെയ്യുന്നു"""
         await self.db.pending_users_ch1.drop()
 
 
-    # ---- ചാനൽ 2-ന് വേണ്ടിയുള്ള ഫങ്ഷനുകൾ ----
+    # ==================== ചാനൽ 2 ജോയിൻ റിക്വസ്റ്റ് ഫങ്ഷനുകൾ ====================
+
     async def add_pending_user_ch2(self, user_id):
+        """ഉപയോക്താവ് ചാനൽ 2-ലേക്ക് റിക്വസ്റ്റ് അയക്കുമ്പോൾ pending_users_ch2 കളക്ഷനിലേക്ക് മാറ്റുന്നു"""
         await self.db.pending_users_ch2.update_one(
             {'_id': user_id},
             {'$set': {'status': 'pending'}},
@@ -168,11 +174,14 @@ class Database:
         )
 
     async def is_user_pending_ch2(self, user_id):
+        """ഉപയോക്താവ് ചാനൽ 2-ലേക്ക് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു"""
         user = await self.db.pending_users_ch2.find_one({'_id': user_id})
         return bool(user)
 
     async def clear_pending_ch2(self):
+        """അഡ്മിൻ കമാൻഡ് അടിക്കുമ്പോൾ ചാനൽ 2-ലെ മുഴുവൻ ഡാറ്റയും ക്ലിയർ ചെയ്യുന്നു"""
         await self.db.pending_users_ch2.drop()
+
 
 
 
