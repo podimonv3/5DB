@@ -84,25 +84,35 @@ async def start(client, message: Message):
     invite_links = await is_subscribed(client, query=message)
     if AUTH_CHANNEL and len(invite_links) >= 1:
         btn = []
-        
-        # ⚠️ ഒരു സമയം ഒരു ചാനൽ ബട്ടൺ മാത്രം കാണിക്കാൻ ആദ്യത്തെ ലിങ്ക് മാത്രം എടുക്കുന്നു
         link = invite_links[0]
+        user_id = message.from_user.id
         
-        btn.append([
-            InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 1sᴛ Cʜᴀɴɴᴇʟ", url=link)
-        ])
+        # ചാനൽ 1-ലേക്ക് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
+        if not await db.is_user_pending_ch1(user_id):
+            # റിക്വസ്റ്റ് അയച്ചിട്ടില്ലെങ്കിൽ ചാനൽ 1 ബട്ടൺ മാത്രം കാണിക്കുന്നു (Try Again ഇല്ല)
+            btn.append([
+                InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 1sᴛ Cʜᴀɴɴᴇʟ", url=link)
+            ])
+            text_msg = "**Yᴏᴜ ɴᴇᴇᴅ ᴛᴏ sᴇɴᴅ ᴀ Jᴏɪɴ Rᴇǫᴜᴇsᴛ ᴛᴏ ᴏᴜʀ 1sᴛ ᴄʜᴀɴɴᴇʟ ᴛᴏ ɢᴇᴛ ᴛʜᴇ ғɪʟᴇ...\n\n👉 Click the channel button below and press 'Request to Join'.**"
+        else:
+            # ചാനൽ 1 അയച്ചു കഴിഞ്ഞെങ്കിൽ ചാനൽ 2 ബട്ടണും Try Again ബട്ടണും കാണിക്കുന്നു
+            btn.append([
+                InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 2ɴᴅ Cʜᴀɴɴᴇʟ", url=link)
+            ])
+            btn.append([
+                InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪɴ", url=f"https://t.me{temp.U_NAME}?start=checksub")
+            ])
+            text_msg = "**Great! First request sent.\n\nNow please send a Join Request to our 2nd Channel and click '↻ Try Again' to unlock your file!**"
         
-        # ഇവിടെ ആദ്യത്തെ ബട്ടണിൽ 'Try Again' ഒഴിവാക്കിയിട്ടുണ്ട് (നിങ്ങൾ ആവശ്യപ്പെട്ടതുപോലെ)
         authdel = await client.send_message(
             chat_id=message.from_user.id,
-            text="**Yᴏᴜ ɴᴇᴇᴅ ᴛᴏ sᴇɴଡ ᴀ Jᴏɪɴ Rᴇǫᴜᴇsᴛ ᴛᴏ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ɢᴇᴛ ᴛʜᴇ ғɪʟᴇ...\n\n👉 Click the channel button below and press 'Request to Join'.**",
+            text=text_msg,
             reply_markup=InlineKeyboardMarkup(btn),
             parse_mode=enums.ParseMode.MARKDOWN
         )
         await asyncio.sleep(33)
         await authdel.delete()
         return
-
         
         # etc.py link feature !!!>>> import pmfilter autofilter fn()
     if len(message.command) == 2 and message.command[1].startswith('getfile'):
@@ -322,11 +332,7 @@ async def start(client, message: Message):
 async def handle_join_request(client, chat_join_request):
     user_id = chat_join_request.from_user.id
     chat_id = chat_join_request.chat.id
-    
-    # 1. റിക്വസ്റ്റ് അയച്ച ചാനൽ ഐഡി കൂടി പാസ്സ് ചെയ്ത് ഡാറ്റാബേസിൽ സേവ് ചെയ്യുന്നു
-    await db.add_pending_user(user_id, chat_id)
-    
-    # AUTH_CHANNEL ലിസ്റ്റ് തയ്യാറാക്കുന്നു
+
     if isinstance(AUTH_CHANNEL, int):
         auth_channels = [AUTH_CHANNEL]
     elif isinstance(AUTH_CHANNEL, list):
@@ -334,40 +340,31 @@ async def handle_join_request(client, chat_join_request):
     else:
         return
 
-    # രണ്ട് ചാനലുകൾ ഉണ്ടെങ്കിൽ മാത്രം ഈ ഓട്ടോമാറ്റിക് ബട്ടൺ മാറ്റം നടക്കും
-    if len(auth_channels) > 1:
-        # ഉപയോക്താവ് ഒന്നാമത്തെ ചാനലിലാണ് റിക്വസ്റ്റ് അയച്ചതെങ്കിൽ (Index 0)
-        if chat_id == auth_channels[0]:
-            try:
-                # രണ്ടാമത്തെ ചാനലിന്റെ ലിങ്ക് തത്സമയം നിർമ്മിക്കുന്നു (Index 1)
-                next_channel = auth_channels[1]
-                new_link = await client.create_chat_invite_link(chat_id=next_channel, creates_join_request=True)
-                
-                # രണ്ടാമത്തെ ചാനൽ ലിങ്കും + Try Again ബട്ടണും ഒരുമിച്ച് നൽകുന്നു
-                btn = [
-                    [InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 2ɴᴅ Cʜᴀɴɴᴇʟ", url=new_link.invite_link)],
-                    [InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪɴ", url=f"https://t.me{temp.U_NAME}?start=checksub")]
-                ]
-                
-                await client.send_message(
-                    chat_id=user_id,
-                    text="**Great! First request sent.\n\nNow please send a Join Request to our 2nd Channel and click '↻ Try Again' to unlock your file!**",
-                    reply_markup=InlineKeyboardMarkup(btn)
-                )
-            except Exception as e:
-                print(f"Error sending 2nd channel link: {e}")
+    # ഉപയോക്താവ് ഏത് ചാനലിലാണ് റിക്വസ്റ്റ് അയച്ചത് എന്ന് നോക്കി വെവ്വേറെ സേവ് ചെയ്യുന്നു
+    if len(auth_channels) >= 1 and chat_id == auth_channels[0]:
+        await db.add_pending_user_ch1(user_id)
+    elif len(auth_channels) >= 2 and chat_id == auth_channels[1]:
+        await db.add_pending_user_ch2(user_id)
 
 
+# ---- 3. രണ്ട് ചാനലുകൾക്കും വെവ്വേറെയുള്ള അഡ്മിൻ ക്ലിയർ കമാൻഡുകൾ ----
 @Client.on_message(filters.command("delrequests1") & filters.user(ADMINS))
 async def clear_ch1_data(client, message):
-    await db.clear_pending_ch1()
-    await message.reply_text("✅ ചാനൽ 1-ലെ എല്ലാ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തു!")
+    msg = await message.reply_text("⚡ _ചാനൽ 1-ലെ റിക്വസ്റ്റ് ഡാറ്റകൾ ഡിലീറ്റ് ചെയ്യുന്നു..._")
+    try:
+        await db.clear_pending_ch1()
+        await msg.edit("✅ **ചാനൽ 1-ലെ എല്ലാ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തിരിക്കുന്നു!**")
+    except Exception as e:
+        await msg.edit(f"❌ **എറർ:** `{e}`")
 
 @Client.on_message(filters.command("delrequests2") & filters.user(ADMINS))
 async def clear_ch2_data(client, message):
-    await db.clear_pending_ch2()
-    await message.reply_text("✅ ചാനൽ 2-ലെ എല്ലാ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തു!")
-
+    msg = await message.reply_text("⚡ _ചാനൽ 2-ലെ റിക്വസ്റ്റ് ഡാറ്റകൾ ഡിലീറ്റ് ചെയ്യുന്നു..._")
+    try:
+        await db.clear_pending_ch2()
+        await msg.edit("✅ **ചാനൽ 2-ലെ എല്ലാ ജോയിൻ റിക്വസ്റ്റ് ഡാറ്റകളും ഡിലീറ്റ് ചെയ്തിരിക്കുന്നു!**")
+    except Exception as e:
+        await msg.edit(f"❌ **എറർ:** `{e}`")
 
 @Client.on_message(filters.command('channel') & filters.user(ADMINS))
 async def channel_info(bot, message):
