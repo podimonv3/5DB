@@ -142,7 +142,8 @@ class Database:
     async def get_db_size(self):
         return (await self.db.command("dbstats"))['dataSize']
 
-        async def add_pending_user(self, user_id):
+
+    async def add_pending_user(self, user_id):
         await self.db.pending_users.update_one({'_id': user_id}, {'$set': {'pending': True}}, upsert=True)
 
     async def is_user_pending(self, user_id):
@@ -151,6 +152,7 @@ class Database:
 
     async def clear_all_pending_requests(self):
         await self.db.pending_users.drop()
+
 
 
 db = Database(DATABASE_URI, DATABASE_NAME)
