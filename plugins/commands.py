@@ -83,38 +83,25 @@ async def start(client, message: Message):
     invite_links = await is_subscribed(client, query=message)
     if AUTH_CHANNEL and len(invite_links) >= 1:
         btn = []
-        for chnl_num, link in enumerate(invite_links, start=1):
-            if chnl_num == 1:
-                channel_num = "1sᴛ"
-            elif chnl_num == 2:
-                channel_num = "2ɴᴅ"
-            elif chnl_num == 3:
-                channel_num = "3ʀᴅ"
-            else:
-                channel_num = str(chnl_num)+"ᴛʜ"
-            
-            # ഇവിടെ ബട്ടൺ പേര് Request To Join എന്ന് മാറ്റിയിട്ടുണ്ട്
-            btn.append([
-                InlineKeyboardButton(f"✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ {channel_num} Cʜᴀɴɴᴇʟ", url=link)
-            ])
-            
-        if message.command[1] != "subscribe":
-            try:
-                kk, file_id = message.command[1].split("_", 1)
-                pre = 'checksubp' if kk == 'filep' else 'checksub'
-                btn.append([InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪﻧ", callback_data=f"{pre}#{file_id}")])
-            except (IndexError, ValueError):
-                btn.append([InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪɴ", url=f"https://t.me{temp.U_NAME}?start={message.command[1]}")])
-                
+        
+        # ⚠️ ഒരു സമയം ഒരു ചാനൽ ബട്ടൺ മാത്രം കാണിക്കാൻ ആദ്യത്തെ ലിങ്ക് മാത്രം എടുക്കുന്നു
+        link = invite_links[0]
+        
+        btn.append([
+            InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 1sᴛ Cʜᴀɴɴᴇʟ", url=link)
+        ])
+        
+        # ഇവിടെ ആദ്യത്തെ ബട്ടണിൽ 'Try Again' ഒഴിവാക്കിയിട്ടുണ്ട് (നിങ്ങൾ ആവശ്യപ്പെട്ടതുപോലെ)
         authdel = await client.send_message(
             chat_id=message.from_user.id,
-            text="**Yᴏᴜ ɴᴇᴇᴅ ᴛᴏ sᴇɴᴅ ᴀ Jᴏɪɴ Rᴇǫᴜᴇsᴛ ᴛᴏ ᴏᴜʀ ᴄʜᴀണെʟs ᴛᴏ ɢᴇᴛ ᴛʜᴇ ғɪʟᴇ...\n\n1. Click the channel button below and press 'Request to Join'.\n2. After sending requests, click the '↻ Try Again' button.**",
+            text="**Yᴏᴜ ɴᴇᴇᴅ ᴛᴏ sᴇɴଡ ᴀ Jᴏɪɴ Rᴇǫᴜᴇsᴛ ᴛᴏ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ɢᴇᴛ ᴛʜᴇ ғɪʟᴇ...\n\n👉 Click the channel button below and press 'Request to Join'.**",
             reply_markup=InlineKeyboardMarkup(btn),
             parse_mode=enums.ParseMode.MARKDOWN
         )
         await asyncio.sleep(33)
         await authdel.delete()
         return
+
         
         # etc.py link feature !!!>>> import pmfilter autofilter fn()
     if len(message.command) == 2 and message.command[1].startswith('getfile'):
@@ -332,7 +319,42 @@ async def start(client, message: Message):
 @Client.on_chat_join_request()
 async def handle_join_request(client, chat_join_request):
     user_id = chat_join_request.from_user.id
+    chat_id = chat_join_request.chat.id
+    
+    # 1. റിക്വസ്റ്റ് അയച്ച വിവരം ഡാറ്റാബേസിൽ രേഖപ്പെടുത്തുന്നു
     await db.add_pending_user(user_id)
+    
+    # AUTH_CHANNEL ലിസ്റ്റ് ആക്കി മാറ്റുന്നു
+    if isinstance(AUTH_CHANNEL, int):
+        auth_channels = [AUTH_CHANNEL]
+    elif isinstance(AUTH_CHANNEL, list):
+        auth_channels = AUTH_CHANNEL
+    else:
+        return
+
+    # രണ്ട് ചാനലുകൾ ഉണ്ടെങ്കിൽ മാത്രം ഈ ഓട്ടോമാറ്റിക് മെസ്സേജ് മാറ്റം നടക്കും
+    if len(auth_channels) > 1:
+        # ഉപയോക്താവ് ഒന്നാമത്തെ ചാനലിലാണ് റിക്വസ്റ്റ് അയച്ചതെങ്കിൽ
+        if chat_id == auth_channels[0]:
+            try:
+                # രണ്ടാമത്തെ ചാനലിന്റെ ലിങ്ക് തത്സമയം നിർമ്മിക്കുന്നു
+                next_channel = auth_channels[1]
+                new_link = await client.create_chat_invite_link(chat_id=next_channel, creates_join_request=True)
+                
+                # 📥 രണ്ടാമത്തെ ചാനൽ ലിങ്കും + Try Again ബട്ടണും ഒരുമിച്ച് നൽകുന്നു
+                btn = [
+                    [InlineKeyboardButton("✉️ Rᴇǫᴜᴇsᴛ Tᴏ Jᴏɪɴ 2ɴᴅ Cʜᴀɴɴᴇʟ", url=new_link.invite_link)],
+                    [InlineKeyboardButton("↻ Tʀʏ Aɢᴀɪɴ", url=f"https://t.me{temp.U_NAME}?start=checksub")]
+                ]
+                
+                await client.send_message(
+                    chat_id=user_id,
+                    text="**Great! First request sent.\n\nNow please send a Join Request to our 2nd Channel and click '↻ Try Again' to unlock your file!**",
+                    reply_markup=InlineKeyboardMarkup(btn)
+                )
+            except Exception as e:
+                print(f"Error sending 2nd channel link with try again: {e}")
+
 
 @Client.on_message(filters.command("delrequests") & filters.user(ADMINS))
 async def clear_pending_data(client, message):
