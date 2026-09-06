@@ -143,15 +143,22 @@ class Database:
         return (await self.db.command("dbstats"))['dataSize']
 
 
-    async def add_pending_user(self, user_id):
-        await self.db.pending_users.update_one({'_id': user_id}, {'$set': {'pending': True}}, upsert=True)
+    async def add_pending_user(self, user_id, chat_id):
+        # ഉപയോക്താവ് റിക്വസ്റ്റ് അയച്ച ചാനൽ ഐഡി ഒരു ലിസ്റ്റിലേക്ക് ചേർക്കുന്നു
+        await self.db.pending_users.update_one(
+            {'_id': user_id}, 
+            {'$addToSet': {'pending_channels': chat_id}}, 
+            upsert=True
+        )
 
-    async def is_user_pending(self, user_id):
-        user = await self.db.pending_users.find_one({'_id': user_id})
+    async def is_user_pending(self, user_id, chat_id):
+        # ഉപയോക്താവ് ഈ പ്രത്യേക ചാനലിലേക്ക് റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് നോക്കുന്നു
+        user = await self.db.pending_users.find_one({'_id': user_id, 'pending_channels': chat_id})
         return bool(user)
 
     async def clear_all_pending_requests(self):
         await self.db.pending_users.drop()
+
 
 
 
