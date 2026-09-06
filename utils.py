@@ -44,26 +44,39 @@ class temp(object):
     SEND_ALL_TEMP = {}
     KEYWORD = {}
 
+# utils.py ഫയലിൽ നിലവിലുള്ള 'is_subscribed' ഫംഗ്ഷന് പകരം ഇത് വെക്കുക:
+
 async def is_subscribed(bot, query=None, userid=None):
     invite_links = []
+    u_id = userid if userid is not None else (query.from_user.id if query and query.from_user else None)
+    
+    if not u_id:
+        return invite_links
+
+    # ഡാറ്റാബേസിൽ നിന്ന് യൂസറുടെ വിവരങ്ങൾ എടുക്കുന്നു
+    user_db = await db.db.users.find_one({"id": int(u_id)})
+    requested_chats = user_db.get("join_requests", []) if user_db else []
+
     for id in AUTH_CHANNEL:
+        # 1. യൂസർ ഇതിനകം റിക്വസ്റ്റ് അയച്ചിട്ടുണ്ടോ എന്ന് ഡാറ്റാബേസ് വഴി നോക്കുന്നു
+        if id in requested_chats:
+            continue
+
+        # 2. യൂസർ നിലവിൽ ചാനലിൽ മെമ്പർ ആണോ എന്ന് നോക്കുന്നു
         try:
-            if userid == None and query != None:
-                chat = await bot.get_chat(id)
-                user = await bot.get_chat_member(id, query.from_user.id)
-            else:
-                chat = await bot.get_chat(id)
-                user = await bot.get_chat_member(AUTH_CHANNEL, int(userid))
+            chat = await bot.get_chat(id)
+            user = await bot.get_chat_member(id, int(u_id))
+            if user.status != enums.ChatMemberStatus.BANNED:
+                continue
         except UserNotParticipant:
+            # യൂസർ മെമ്പറും അല്ല, റിക്വസ്റ്റും അയച്ചിട്ടില്ലെങ്കിൽ ചാനൽ ലിങ്ക് ലിസ്റ്റിലേക്ക് കൂട്ടുന്നു
             invite_links.append(chat.invite_link)
         except Exception as e:
             logger.exception(e)
             continue
-        else:
-            if user.status != enums.ChatMemberStatus.BANNED:
-                continue
-
+            
     return invite_links
+
 
 async def get_poster(query, bulk=False, id=False, file=None):
     if not id:
